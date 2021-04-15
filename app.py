@@ -1,8 +1,8 @@
 """
 app.py
 
-A simple 2FA application that shows how to integrate with a login and administrative page
- that are both protected via Two Factor Authentication, with different Scopes
+A simple MFA application that shows how to integrate with a login and administrative page
+ that are both protected via Multi Factor Authentication, with different Scopes
 
 @copyright Bandwidth INC
 """
