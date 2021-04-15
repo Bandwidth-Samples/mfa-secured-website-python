@@ -7,24 +7,22 @@ A simple 2FA application that shows how to integrate with a login and administra
 @copyright Bandwidth INC
 """
 
-import configparser
+import os
 from user import User
 from flask import Flask, request, Response, render_template, redirect, url_for
 from bandwidth.bandwidth_client import BandwidthClient
 from bandwidth.exceptions.api_exception import APIException
 
-config = configparser.ConfigParser()
-config.read('config.ini')
 try:
-    config['bandwidth']['api_user']
-    config['bandwidth']['api_password']
+    os.environ["BW_USERNAME"]
+    os.environ["BW_PASSWORD"]
 except error:
-    print("Please set the config variables defined in the README", error)
+    print("Please set the environment variables defined in the README", error)
     exit(-1)
 
 bandwidth_client = BandwidthClient(
-    two_factor_auth_basic_auth_user_name=config['bandwidth']['api_user'],
-    two_factor_auth_basic_auth_password=config['bandwidth']['api_password'],
+    two_factor_auth_basic_auth_user_name=os.environ["BW_USERNAME"],
+    two_factor_auth_basic_auth_password=os.environ["BW_PASSWORD"],
 )
 
 app = Flask(__name__)
@@ -97,7 +95,7 @@ def show_2fa(scope):
     user = get_user()
 
     # send out 2FA code
-    send2FA(config['bandwidth']['account_id'],
+    send2FA(os.environ["BW_ACCOUNT_ID"],
             user, scope)
 
     # then show 2FA request
@@ -113,7 +111,7 @@ def twofa_submit():
     code = request.form['code']
     scope = request.form['scope']
 
-    if(validate2FA(config['bandwidth']['account_id'], user, scope, code) != True):
+    if(validate2FA(os.environ["BW_ACCOUNT_ID"], user, scope, code) != True):
         return render_template('2fa_form.html', username=user.username, scope=scope, message="Sorry, wrong code, please try again")
 
     # update their security level
@@ -136,7 +134,7 @@ def log_out():
     return redirect(url_for('show_login_page'))
 
 #  ------------------------------------------------------------------------------------------
-#  All the functions for interacting with Bandwidth WebRTC services below here
+#  All the functions for interacting with Bandwidth MFA services below here
 #
 
 
@@ -155,7 +153,7 @@ def get_user():
     global globalUser
     # simplifying things here, we would normally pull this data from a database
     if (globalUser.username != "Invalid"):
-        globalUser.number = config['numbers']['user_number']
+        globalUser.number = os.environ["USER_NUMBER"]
 
     return globalUser
 
@@ -170,13 +168,13 @@ def send2FA(account_id, user, scope):
     '''
     # FYI, printing the to_number in prod could violate PII
     print(
-        f"For {user.username} sending 2FA to {user.number} from {config['numbers']['from_number']} for Scope '{scope}'")
+        f"For {user.username} sending 2FA to {user.number} from {os.environ['BW_NUMBER']} for Scope '{scope}'")
 
     # determine if the user has a preference for voice or sms, for use below
     if(user.delivery_pref == "sms"):
-        application_id = config['bandwidth']['messaging_application_id']
+        application_id = os.environ["BW_MESSAGING_APPLICATION_ID"]
     else:
-        application_id = config['bandwidth']['voice_application_id']
+        application_id = os.environ["BW_VOICE_APPLICATION_ID"]
 
     # These three variables are available for expansion by our 2FA service
     # {NAME} (optional) is the name of your Application within the Bandwidth dashboard
@@ -187,14 +185,14 @@ def send2FA(account_id, user, scope):
     try:
         body = {
             # from is any number in the location referenced by your Bandwidth Messaging Application
-            "from": config['numbers']['from_number'],
+            "from": os.environ["BW_NUMBER"],
             "to": user.number,  # the recipient of the message
             "applicationId": application_id,
             "scope": scope,
             "digits": 6,  # 4-8
             "message": message
         }
-        auth_client = bandwidth_client.two_factor_auth_client.client
+        auth_client = bandwidth_client.two_factor_auth_client.mfa
         if(user.delivery_pref == "sms"):
             auth_client.create_messaging_two_factor(account_id, body)
         else:
@@ -222,14 +220,14 @@ def validate2FA(account_id, user, scope, code):
         f"verifying 2FA for {user.number} for Scope '{scope}''")
     # determine if the user has a preference for voice or sms, for use below
     if(user.delivery_pref == "sms"):
-        application_id = config['bandwidth']['messaging_application_id']
+        application_id = os.environ["BW_MESSAGING_APPLICATION_ID"]
     else:
-        application_id = config['bandwidth']['voice_application_id']
+        application_id = os.environ["BW_VOICE_APPLICATION_ID"]
 
     try:
         body = {
             # Should be the same as your request
-            "from": config['numbers']['from_number'],
+            "from": os.environ["BW_NUMBER"],
             "to": user.number,
             "applicationId": application_id,
             "scope": scope,
@@ -237,7 +235,7 @@ def validate2FA(account_id, user, scope, code):
             "digits": 6,
             "expirationTimeInMinutes": 3
         }
-        auth_client = bandwidth_client.two_factor_auth_client.client
+        auth_client = bandwidth_client.two_factor_auth_client.mfa
         response = auth_client.create_verify_two_factor(account_id, body)
 
         return response.body.valid

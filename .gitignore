@@ -20,6 +20,10 @@
 **/vendor/*
 *.phar
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Log file
 *.log
 
