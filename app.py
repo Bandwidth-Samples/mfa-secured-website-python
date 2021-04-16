@@ -67,52 +67,52 @@ def show_secure_page():
 
 @ app.route("/submitLogin", methods=["POST"])
 def validateLogin():
-    '''validate login info, and then send a 2FA and prompt for a 2FA'''
+    '''validate login info, and then send a MFA and prompt for a MFA'''
     # we would normally validate here, but we aren't in this simple example
     username = request.form['username']
     myUser = User(username)
     myUser.delivery_pref = request.form['delivery_preference']
     set_user(myUser)
 
-    # throw up the 2FA login page
-    return show_2fa("login")
+    # throw up the MFA login page
+    return show_mfa("login")
 
 
 @ app.route("/goSecure", methods=["GET"])
 def goSecure():
     user = get_user()
     print(f"Username '{user.username}' accessing secure site")
-    return show_2fa("admin")
+    return show_mfa("admin")
 
 
-def show_2fa(scope):
+def show_mfa(scope):
     '''
-    A function that will send a 2FA code and then 
-    show a 2FA page; supports different SCOPEs
+    A function that will send a MFA code and then 
+    show a MFA page; supports different SCOPEs
     :param the scope to show this for
     '''
     # obtain user info
     user = get_user()
 
-    # send out 2FA code
-    send2FA(os.environ["BW_ACCOUNT_ID"],
+    # send out MFA code
+    sendMFA(os.environ["BW_ACCOUNT_ID"],
             user, scope)
 
-    # then show 2FA request
+    # then show MFA request
     # we'll pass the scope in the html for simplification of the demo, but it should be somewhere non-user accessible
-    message = "We just sent you a 2FA code for '" + scope + "', please enter it here"
-    return render_template('2fa_form.html', username=user.username, scope=scope, message=message)
+    message = "We just sent you a MFA code for '" + scope + "', please enter it here"
+    return render_template('mfa_form.html', username=user.username, scope=scope, message=message)
 
 
-@ app.route("/2FASubmit", methods=["POST"])
+@ app.route("/MFASubmit", methods=["POST"])
 def twofa_submit():
     user = get_user()
-    # validate the 2FA code
+    # validate the MFA code
     code = request.form['code']
     scope = request.form['scope']
 
-    if(validate2FA(os.environ["BW_ACCOUNT_ID"], user, scope, code) != True):
-        return render_template('2fa_form.html', username=user.username, scope=scope, message="Sorry, wrong code, please try again")
+    if(validateMFA(os.environ["BW_ACCOUNT_ID"], user, scope, code) != True):
+        return render_template('mfa_form.html', username=user.username, scope=scope, message="Sorry, wrong code, please try again")
 
     # update their security level
     # proceed on to protected area of the website
@@ -158,9 +158,9 @@ def get_user():
     return globalUser
 
 
-def send2FA(account_id, user, scope):
+def sendMFA(account_id, user, scope):
     '''
-    Send out a 2FA Code
+    Send out a MFA Code
     :param account_id your BAND account id
     :param user who is receiving this code, object has their number and username
     :param scope the scope for this request, e.g. login, secure action, etc
@@ -168,7 +168,7 @@ def send2FA(account_id, user, scope):
     '''
     # FYI, printing the to_number in prod could violate PII
     print(
-        f"For {user.username} sending 2FA to {user.number} from {os.environ['BW_NUMBER']} for Scope '{scope}'")
+        f"For {user.username} sending MFA to {user.number} from {os.environ['BW_NUMBER']} for Scope '{scope}'")
 
     # determine if the user has a preference for voice or sms, for use below
     if(user.delivery_pref == "sms"):
@@ -176,7 +176,7 @@ def send2FA(account_id, user, scope):
     else:
         application_id = os.environ["BW_VOICE_APPLICATION_ID"]
 
-    # These three variables are available for expansion by our 2FA service
+    # These three variables are available for expansion by our MFA service
     # {NAME} (optional) is the name of your Application within the Bandwidth dashboard
     # {SCOPE} (optional) is the scope defined by this call, e.g. login, admin, verify
     # {CODE} (required) is the code created by the system
@@ -201,14 +201,14 @@ def send2FA(account_id, user, scope):
         return None
 
     except APIException as e:
-        print("send2FA> Failed to send 2FA: %s" %
+        print("sendMFA> Failed to send MFA: %s" %
               e.response.text)
         return None
 
 
-def validate2FA(account_id, user, scope, code):
+def validateMFA(account_id, user, scope, code):
     '''
-    Validate the 2FA Code you sent out before
+    Validate the MFA Code you sent out before
     :param account_id your BAND account id
     :param user who is receiving this code
     :param scope the scope for this request, e.g. login, secure action, etc
@@ -217,7 +217,7 @@ def validate2FA(account_id, user, scope, code):
     '''
     # FYI, printing the to_number in prod could violate PII
     print(
-        f"verifying 2FA for {user.number} for Scope '{scope}''")
+        f"verifying MFA for {user.number} for Scope '{scope}''")
     # determine if the user has a preference for voice or sms, for use below
     if(user.delivery_pref == "sms"):
         application_id = os.environ["BW_MESSAGING_APPLICATION_ID"]
@@ -241,7 +241,7 @@ def validate2FA(account_id, user, scope, code):
         return response.body.valid
 
     except APIException as e:
-        print("validate2FA> Failed to validate 2FA: %s" %
+        print("validateMFA> Failed to validate MFA: %s" %
               e.response.text)
         return None
 
