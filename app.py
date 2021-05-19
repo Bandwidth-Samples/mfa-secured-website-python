@@ -16,8 +16,13 @@ from bandwidth.exceptions.api_exception import APIException
 try:
     os.environ["BW_USERNAME"]
     os.environ["BW_PASSWORD"]
-except error:
-    print("Please set the environment variables defined in the README", error)
+    os.environ["BW_ACCOUNT_ID"]
+    os.environ["USER_NUMBER"]
+    os.environ["BW_NUMBER"]
+    os.environ["BW_MESSAGING_APPLICATION_ID"]
+    os.environ["BW_VOICE_APPLICATION_ID"]
+except Exception as e:
+    print("Please set the environment variables defined in the README", e)
     exit(-1)
 
 bandwidth_client = BandwidthClient(
